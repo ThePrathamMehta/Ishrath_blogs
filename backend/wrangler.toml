@@ -1,0 +1,26 @@
+name = "inkwell-backend"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+# D1 Database binding
+[[d1_databases]]
+binding = "DB"
+database_name = "ishrath-blog"
+database_id = "e6171f8b-77ba-4625-b96d-96966604b004"
+migrations_dir = "drizzle"
+
+# R2 Storage binding for images
+[[r2_buckets]]
+binding = "BLOG_IMAGES"
+bucket_name = "ishrath-blog-images"
+preview_bucket_name = "ishrath-blog-images"
+
+# Environment variables
+[vars]
+JWT_SECRET = "your-super-secret-jwt-key-change-in-production"
+FRONTEND_URL = "http://localhost:3000"
+R2_PUBLIC_URL = "https://pub-YOUR_ACCOUNT_ID.r2.dev"
+
+# CORS allowed origins
+[env.production.vars]
+FRONTEND_URL = "https://yourdomain.com"
