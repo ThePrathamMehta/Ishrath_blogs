@@ -1,5 +1,20 @@
-import { redirect } from 'next/navigation';
+'use client';
+
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 export default function HomePage() {
-  redirect('/login');
+  const router = useRouter();
+
+  useEffect(() => {
+    const token = localStorage.getItem('auth_token');
+    
+    if (token) {
+      router.push('/dashboard');
+    } else {
+      router.push('/login');
+    }
+  }, [router]);
+
+  return null; 
 }

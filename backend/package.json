@@ -5,10 +5,11 @@
   "main": "src/index.ts",
   "scripts": {
     "dev": "wrangler dev",
+    "dev:remote": "wrangler dev --remote",
     "deploy": "wrangler deploy",
     "db:generate": "drizzle-kit generate",
-    "db:migrate:local": "wrangler d1 migrations apply inkwell-blog --local",
-    "db:migrate:remote": "wrangler d1 migrations apply inkwell-blog --remote",
+    "db:migrate:local": "wrangler d1 migrations apply ishrath-blog --local",
+    "db:migrate:remote": "wrangler d1 migrations apply ishrath-blog --remote",
     "db:studio": "drizzle-kit studio"
   },
   "keywords": [

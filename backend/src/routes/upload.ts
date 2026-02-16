@@ -4,11 +4,9 @@ import type { AuthContext, Env } from '../types';
 
 const app = new Hono<{ Bindings: Env; Variables: AuthContext }>();
 
-// Allowed image types
 const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
-// Helper function to generate unique filename
 function generateFilename(originalName: string): string {
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 15);
@@ -16,20 +14,17 @@ function generateFilename(originalName: string): string {
   return `${timestamp}-${random}.${extension}`;
 }
 
-// Upload cover/featured image
 app.post('/cover', authMiddleware, async (c) => {
   try {
     const formData = await c.req.formData();
     const fileEntry = formData.get('image');
 
-    // Check if file exists and is a File instance
     if (!fileEntry || typeof fileEntry === 'string') {
       return c.json({ error: 'No image file provided' }, 400);
     }
 
     const file = fileEntry as File;
 
-    // Validate file type
     if (!ALLOWED_TYPES.includes(file.type)) {
       return c.json(
         {
@@ -39,7 +34,6 @@ app.post('/cover', authMiddleware, async (c) => {
       );
     }
 
-    // Validate file size
     if (file.size > MAX_FILE_SIZE) {
       return c.json(
         {
@@ -49,10 +43,8 @@ app.post('/cover', authMiddleware, async (c) => {
       );
     }
 
-    // Generate unique filename
     const filename = `covers/${generateFilename(file.name)}`;
 
-    // Upload to R2
     const arrayBuffer = await file.arrayBuffer();
     await c.env.BLOG_IMAGES.put(filename, arrayBuffer, {
       httpMetadata: {
@@ -60,7 +52,6 @@ app.post('/cover', authMiddleware, async (c) => {
       },
     });
 
-    // Return the key and public URL
     const publicUrl = `${c.env.R2_PUBLIC_URL}/${filename}`;
 
     return c.json({
@@ -74,20 +65,17 @@ app.post('/cover', authMiddleware, async (c) => {
   }
 });
 
-// Upload content/editor image
 app.post('/content', authMiddleware, async (c) => {
   try {
     const formData = await c.req.formData();
     const fileEntry = formData.get('image');
 
-    // Check if file exists and is a File instance
     if (!fileEntry || typeof fileEntry === 'string') {
       return c.json({ error: 'No image file provided' }, 400);
     }
 
     const file = fileEntry as File;
 
-    // Validate file type
     if (!ALLOWED_TYPES.includes(file.type)) {
       return c.json(
         {
@@ -97,7 +85,6 @@ app.post('/content', authMiddleware, async (c) => {
       );
     }
 
-    // Validate file size
     if (file.size > MAX_FILE_SIZE) {
       return c.json(
         {
@@ -107,10 +94,8 @@ app.post('/content', authMiddleware, async (c) => {
       );
     }
 
-    // Generate unique filename
     const filename = `content/${generateFilename(file.name)}`;
 
-    // Upload to R2
     const arrayBuffer = await file.arrayBuffer();
     await c.env.BLOG_IMAGES.put(filename, arrayBuffer, {
       httpMetadata: {
@@ -118,7 +103,6 @@ app.post('/content', authMiddleware, async (c) => {
       },
     });
 
-    // Return the key and public URL
     const publicUrl = `${c.env.R2_PUBLIC_URL}/${filename}`;
 
     return c.json({
@@ -132,12 +116,10 @@ app.post('/content', authMiddleware, async (c) => {
   }
 });
 
-// Delete image (optional - for cleanup)
 app.delete('/:key', authMiddleware, async (c) => {
   try {
     const key = c.req.param('key');
 
-    // Decode the key (it might be URL encoded)
     const decodedKey = decodeURIComponent(key);
 
     await c.env.BLOG_IMAGES.delete(decodedKey);

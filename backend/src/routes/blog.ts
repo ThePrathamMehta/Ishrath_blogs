@@ -4,6 +4,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { blogPosts, users } from '../db/schema';
 import { authMiddleware } from '../middleware/auth';
+import { uploadImageToR2 } from '../r2/storage';
 import type { AuthContext, Env } from '../types';
 import { generateUniqueSlug, slugify } from '../utils/slugify';
 
@@ -15,7 +16,6 @@ const createBlogSchema = z.object({
   excerpt: z.string().min(1).max(500),
   content: z.string().min(1),
   category: z.enum(['Literature', 'Culture', 'Journalism', 'Essays']),
-  featuredImage: z.string().url().optional(),
   published: z.boolean().optional().default(false),
 });
 
@@ -186,9 +186,32 @@ app.get('/admin/all', authMiddleware, async (c) => {
 // Create new blog post (admin only)
 app.post('/', authMiddleware, async (c) => {
   try {
-    const body = await c.req.json();
-    const validated = createBlogSchema.parse(body);
+    const formData = await c.req.formData();
+
+    // Extract form fields
+    const title = formData.get('title') as string;
+    const excerpt = formData.get('excerpt') as string;
+    const content = formData.get('content') as string;
+    const category = formData.get('category') as string;
+    const published = formData.get('published') === 'true';
+    const coverImageFile = formData.get('coverImage') as File | null;
+
+    // Validate required fields
+    const validated = createBlogSchema.parse({
+      title,
+      excerpt,
+      content,
+      category,
+      published,
+    });
+
     const db = drizzle(c.env.DB);
+
+    // Upload cover image if provided
+    let featuredImageUrl = '';
+    if (coverImageFile && coverImageFile.size > 0) {
+      featuredImageUrl = await uploadImageToR2(coverImageFile, 'covers', c.env);
+    }
 
     // Generate slug
     const baseSlug = slugify(validated.title);
@@ -205,7 +228,7 @@ app.post('/', authMiddleware, async (c) => {
         excerpt: validated.excerpt,
         content: validated.content,
         category: validated.category,
-        featuredImage: validated.featuredImage,
+        featuredImage: featuredImageUrl || null,
         authorId: c.get('user').id,
         published: validated.published || false,
         publishedAt: validated.published ? new Date() : null,
@@ -275,7 +298,6 @@ app.put('/:slug', authMiddleware, async (c) => {
   }
 });
 
-// Publish/unpublish post (admin only)
 app.patch('/:slug/publish', authMiddleware, async (c) => {
   try {
     const { slug } = c.req.param();
@@ -306,7 +328,6 @@ app.patch('/:slug/publish', authMiddleware, async (c) => {
   }
 });
 
-// Delete blog post (admin only)
 app.delete('/:slug', authMiddleware, async (c) => {
   try {
     const { slug } = c.req.param();
@@ -322,6 +343,29 @@ app.delete('/:slug', authMiddleware, async (c) => {
   } catch (error) {
     console.error('Delete post error:', error);
     return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
+// Upload content image for rich text editor (admin only)
+app.post('/upload/content', authMiddleware, async (c) => {
+  try {
+    const formData = await c.req.formData();
+    const fileEntry = formData.get('image');
+
+    if (!fileEntry || typeof fileEntry === 'string') {
+      return c.json({ error: 'No image file provided' }, 400);
+    }
+
+    const file = fileEntry as File;
+    const url = await uploadImageToR2(file, 'content', c.env);
+
+    return c.json({
+      success: true,
+      url,
+    });
+  } catch (error: any) {
+    console.error('Content image upload error:', error);
+    return c.json({ error: error.message || 'Failed to upload image' }, 500);
   }
 });
 

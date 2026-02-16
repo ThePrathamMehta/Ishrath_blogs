@@ -19,7 +19,7 @@ preview_bucket_name = "ishrath-blog-images"
 [vars]
 JWT_SECRET = "your-super-secret-jwt-key-change-in-production"
 FRONTEND_URL = "http://localhost:3000"
-R2_PUBLIC_URL = "https://pub-YOUR_ACCOUNT_ID.r2.dev"
+R2_PUBLIC_URL = "https://pub-390a1a4702d540a7b872fb13543c10b4.r2.dev"
 
 # CORS allowed origins
 [env.production.vars]

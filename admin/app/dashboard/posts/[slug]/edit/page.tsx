@@ -184,7 +184,7 @@ export default function EditPostPage() {
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">Content *</label>
             <RichTextEditor
-              content={content}
+              value={content}
               onChange={(newContent) => {
                 setContent(newContent);
                 setValue('content', newContent);

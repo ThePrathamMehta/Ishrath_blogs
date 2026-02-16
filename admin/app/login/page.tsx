@@ -4,7 +4,7 @@ import { api } from '@/lib/api';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Eye, EyeOff, Loader2, LogIn } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -20,6 +20,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
 
   const {
     register,
@@ -28,6 +29,21 @@ export default function LoginPage() {
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
   });
+
+  // Check if already logged in
+  useEffect(() => {
+    const checkAuth = () => {
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        // User is already logged in, redirect to dashboard
+        router.push('/dashboard');
+      } else {
+        setIsChecking(false);
+      }
+    };
+
+    checkAuth();
+  }, [router]);
 
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
@@ -41,6 +57,15 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   };
+
+  // Show loading while checking authentication
+  if (isChecking) {
+    return (
+      <div className="min-h-screen bg-linear-to-br from-background via-background to-muted flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-linear-to-br from-background via-background to-muted flex items-center justify-center p-4">

@@ -131,8 +131,18 @@ app.post('/login', async (c) => {
     if (error instanceof z.ZodError) {
       return c.json({ error: 'Validation error', details: error.errors }, 400);
     }
-    console.error('Login error:', error);
-    return c.json({ error: 'Internal server error' }, 500);
+    console.error('Login error details:', error);
+    if (error instanceof Error) {
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
+    return c.json(
+      {
+        error: 'Internal server error',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      },
+      500
+    );
   }
 });
 

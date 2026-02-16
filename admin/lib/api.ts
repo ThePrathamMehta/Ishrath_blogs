@@ -81,8 +81,23 @@ class ApiClient {
     return response.data;
   }
 
-  async createPost(data: any) {
-    const response = await this.client.post('/api/blog', data);
+  async createPost(data: any, coverImage?: File) {
+    const formData = new FormData();
+    formData.append('title', data.title);
+    formData.append('excerpt', data.excerpt);
+    formData.append('content', data.content);
+    formData.append('category', data.category);
+    formData.append('published', data.published?.toString() || 'false');
+
+    if (coverImage) {
+      formData.append('coverImage', coverImage);
+    }
+
+    const response = await this.client.post('/api/blog', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return response.data;
   }
 

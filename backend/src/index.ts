@@ -19,14 +19,13 @@ app.use('*', prettyJSON());
 app.use(
   '*',
   cors({
-    origin: (origin) => origin, // Allow all origins in dev, configure for production
+    origin: (origin) => origin, 
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
   })
 );
 
-// Health check
 app.get('/', (c) => {
   return c.json({
     message: 'The Ishrath-Blog API',
@@ -35,19 +34,16 @@ app.get('/', (c) => {
   });
 });
 
-// API routes
 app.route('/api/auth', authRoutes);
 app.route('/api/blog', blogRoutes);
 app.route('/api/newsletter', newsletterRoutes);
 app.route('/api/contact', contactRoutes);
 app.route('/api/upload', uploadRoutes);
 
-// 404 handler
 app.notFound((c) => {
   return c.json({ error: 'Not Found' }, 404);
 });
 
-// Error handler
 app.onError((err, c) => {
   console.error(`Error: ${err.message}`);
   return c.json(

@@ -5,11 +5,11 @@ import Image from 'next/image';
 import { useRef, useState } from 'react';
 
 interface ImageUploadProps {
-  value?: string;
-  onChange: (url: string) => void;
+  value?: string | File;
+  onChange: (value: string | File) => void;
   onRemove?: () => void;
   type?: 'cover' | 'content';
-  maxSize?: number; // in MB
+  maxSize?: number;
   className?: string;
 }
 
@@ -21,19 +21,18 @@ export default function ImageUpload({
   maxSize = 5,
   className = '',
 }: ImageUploadProps) {
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [error, setError] = useState<string>('');
+  const [previewUrl, setPreviewUrl] = useState<string>('');
 
   const handleFileSelect = async (file: File) => {
-    setError(null);
+    setError('');
 
     // Validate file type
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
     if (!allowedTypes.includes(file.type)) {
-      setError('Invalid file type. Please upload JPEG, PNG, WebP, or GIF images.');
+      setError('Invalid file type. Please upload JPEG, PNG, WebP, or GIF.');
       return;
     }
 
@@ -44,39 +43,12 @@ export default function ImageUpload({
       return;
     }
 
-    setIsUploading(true);
-    setUploadProgress(0);
+    // Create preview URL
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
 
-    try {
-      const formData = new FormData();
-      formData.append('image', file);
-
-      const endpoint = type === 'cover' ? '/api/upload/cover' : '/api/upload/content';
-      const token = localStorage.getItem('token');
-
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint}`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Upload failed');
-      }
-
-      const data = await response.json();
-      setUploadProgress(100);
-      onChange(data.url);
-    } catch (err: any) {
-      console.error('Upload error:', err);
-      setError(err.message || 'Failed to upload image');
-    } finally {
-      setIsUploading(false);
-      setUploadProgress(0);
-    }
+    // Pass the File object to parent (not uploaded yet)
+    onChange(file);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -110,6 +82,10 @@ export default function ImageUpload({
   };
 
   const handleRemove = () => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl('');
+    }
     if (onRemove) {
       onRemove();
     } else {
@@ -117,12 +93,23 @@ export default function ImageUpload({
     }
   };
 
+  // Determine what to display
+  const displayUrl = value instanceof File ? previewUrl : value;
+
   return (
     <div className={className}>
-      {value ? (
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileChange}
+        className="hidden"
+      />
+
+      {displayUrl ? (
         <div className="relative group">
           <div className="relative w-full h-64 rounded-lg overflow-hidden border border-border">
-            <Image src={value} alt="Uploaded image" fill className="object-cover" />
+            <Image src={displayUrl} alt="Upload preview" fill className="object-cover" />
           </div>
           <button
             type="button"
@@ -131,6 +118,11 @@ export default function ImageUpload({
           >
             <X className="w-4 h-4" />
           </button>
+          {value instanceof File && (
+            <div className="mt-2 text-sm text-muted-foreground">
+              📎 {value.name} ({(value.size / 1024 / 1024).toFixed(2)} MB) - Will upload on save
+            </div>
+          )}
         </div>
       ) : (
         <div
@@ -138,44 +130,16 @@ export default function ImageUpload({
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
-          className={`relative border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-            isDragging
-              ? 'border-primary bg-primary/5'
-              : 'border-border hover:border-primary hover:bg-accent'
-          }`}
+          className={`
+            border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors
+            ${isDragging ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}
+          `}
         >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
-            onChange={handleFileChange}
-            className="hidden"
-          />
-
-          {isUploading ? (
-            <div className="space-y-3">
-              <Upload className="w-12 h-12 mx-auto text-primary animate-pulse" />
-              <p className="text-sm text-muted-foreground">Uploading...</p>
-              <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-primary transition-all duration-300"
-                  style={{ width: `${uploadProgress}%` }}
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <Upload className="w-12 h-12 mx-auto text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium text-foreground">
-                  Click to upload or drag and drop
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  JPEG, PNG, WebP, or GIF (max {maxSize}MB)
-                </p>
-              </div>
-            </div>
-          )}
+          <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+          <p className="text-sm font-medium text-foreground mb-1">
+            Click to upload or drag and drop
+          </p>
+          <p className="text-xs text-muted-foreground">JPEG, PNG, WebP, or GIF (max {maxSize}MB)</p>
         </div>
       )}
 

@@ -23,7 +23,7 @@ const postSchema = z.object({
   excerpt: z.string().min(1, 'Excerpt is required'),
   content: z.string().min(1, 'Content is required'),
   category: z.enum(['Literature', 'Culture', 'Journalism', 'Essays']),
-  featuredImage: z.string().url('Must be a valid URL').optional().or(z.literal('')),
+  featuredImage: z.union([z.string().url(), z.instanceof(File), z.literal('')]).optional(),
   published: z.boolean(),
 });
 
@@ -33,6 +33,8 @@ export default function NewPostPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [content, setContent] = useState('');
+  const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
+  const [inlineImages, setInlineImages] = useState<File[]>([]);
 
   const {
     register,
@@ -53,16 +55,46 @@ export default function NewPostPage() {
   const onSubmit = async (data: PostFormData) => {
     setIsLoading(true);
     try {
-      await api.createPost({
-        ...data,
-        content,
-      });
+      let updatedContent = content;
+
+      // Upload inline images and replace preview URLs with actual URLs
+      if (inlineImages.length > 0) {
+        console.log(`📤 Uploading ${inlineImages.length} inline images...`);
+
+        for (const file of inlineImages) {
+          const result = await api.uploadContentImage(file);
+          const tempUrl = URL.createObjectURL(file);
+          updatedContent = updatedContent.replace(tempUrl, result.url);
+          console.log(`✅ Uploaded: ${file.name}`);
+        }
+      }
+
+      // Create post with cover image file - backend will handle the upload
+      await api.createPost(
+        {
+          ...data,
+          content: updatedContent,
+        },
+        coverImageFile || undefined
+      );
+
+      console.log('✅ Post created successfully');
       router.push('/dashboard/posts');
     } catch (error: any) {
       console.error('Failed to create post:', error);
-      alert(error.response?.data?.error || 'Failed to create post');
+      alert(error.response?.data?.error || error.message || 'Failed to create post');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleCoverImageChange = (value: string | File) => {
+    if (value instanceof File) {
+      setCoverImageFile(value);
+      setValue('featuredImage', value);
+    } else {
+      setCoverImageFile(null);
+      setValue('featuredImage', value);
     }
   };
 
@@ -116,11 +148,12 @@ export default function NewPostPage() {
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">Content *</label>
             <RichTextEditor
-              content={content}
+              value={content}
               onChange={(newContent) => {
                 setContent(newContent);
                 setValue('content', newContent);
               }}
+              onImagesChange={setInlineImages}
             />
             {errors.content && (
               <p className="mt-1 text-sm text-destructive">{errors.content.message}</p>
@@ -148,11 +181,13 @@ export default function NewPostPage() {
             <label className="block text-sm font-medium text-foreground mb-2">Cover Image</label>
             <ImageUpload
               value={watch('featuredImage') || ''}
-              onChange={(url) => setValue('featuredImage', url)}
+              onChange={handleCoverImageChange}
               type="cover"
             />
             {errors.featuredImage && (
-              <p className="mt-1 text-sm text-destructive">{errors.featuredImage.message}</p>
+              <p className="mt-1 text-sm text-destructive">
+                {errors.featuredImage.message as string}
+              </p>
             )}
           </div>
 
